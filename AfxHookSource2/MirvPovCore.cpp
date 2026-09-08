@@ -191,7 +191,10 @@ void MirvPov_Enable(HMODULE clientDll)
     // CS2 POV Recorder owns the radar in post-processing. Do not install the
     // experimental native radar patches: this avoids duplicate radar behavior
     // and removes an unnecessary set of client.dll signatures from our runtime.
-    MirvPov_HookVoiceHud(clientDll);
+    // CS2 POV Recorder renders its own PTT-derived voice indicator together
+    // with subtitles. Do not hook/synthesize the native bottom-left speaker
+    // HUD, otherwise both indicators are visible at the same time. Keep the
+    // remaining voice runtime active so POV team audio behavior is unchanged.
     MirvPovScoreboard_Initialize(clientDll);
     MirvPov_ResetVoiceHud();
 
