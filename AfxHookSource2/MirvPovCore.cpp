@@ -188,7 +188,9 @@ void MirvPov_Enable(HMODULE clientDll)
     MirvPovSoundCircle_Initialize(clientDll);
     MirvPovHud_ApplyPatches(clientDll);
     MirvPovTeamHealth_Initialize(clientDll);
-    MirvPov_ApplyRadarPatches(clientDll);
+    // CS2 POV Recorder owns the radar in post-processing. Do not install the
+    // experimental native radar patches: this avoids duplicate radar behavior
+    // and removes an unnecessary set of client.dll signatures from our runtime.
     MirvPov_HookVoiceHud(clientDll);
     MirvPovScoreboard_Initialize(clientDll);
     MirvPov_ResetVoiceHud();
@@ -205,7 +207,7 @@ void MirvPov_Disable()
     MirvPovScoreboard_Reset();
     g_MirvPovAutoSync = false;
     MirvPovHud_RemovePatches();
-    MirvPov_RemoveRadarPatches();
+    // Native radar patches are intentionally never installed by this build.
     MirvPovTeamID_RemovePatches();
     MirvPov_ResetVoiceHud();
     g_MirvPovEnabled = false;
