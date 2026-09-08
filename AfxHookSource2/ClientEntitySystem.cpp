@@ -427,6 +427,11 @@ int GetHighestEntityIndex() {
     //return g_pEntityList && g_GetHighestEntityIndex ? g_GetHighestEntityIndex(*g_pEntityList, false) : -1;
 }
 
+CEntityInstance * GetEntityFromIndex(int index) {
+    if(index < 0 || nullptr == g_pEntityList || nullptr == *g_pEntityList || nullptr == g_GetEntityFromIndex) return nullptr;
+    return (CEntityInstance *)g_GetEntityFromIndex(*g_pEntityList, index);
+}
+
 struct MirvEntityEntry {
 	int entryIndex;
 	int handle;
@@ -687,6 +692,12 @@ ClientDll_GetSplitScreenPlayer_t g_ClientDll_GetSplitScreenPlayer = nullptr;
 bool Hook_GetSplitScreenPlayer( void* pAddr) {
     g_ClientDll_GetSplitScreenPlayer = (ClientDll_GetSplitScreenPlayer_t)pAddr;
     return true;
+}
+
+CEntityInstance * GetRealSplitScreenPlayer(int slot) {
+    return nullptr != g_ClientDll_GetSplitScreenPlayer
+        ? g_ClientDll_GetSplitScreenPlayer(slot)
+        : nullptr;
 }
 
 extern "C" void * afx_hook_source2_get_entity_ref_from_split_screen_player(int index) {

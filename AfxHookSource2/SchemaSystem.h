@@ -58,6 +58,9 @@ struct ClientDllOffsets_t {
 
 	struct CCSPlayerController {
 		ptrdiff_t m_sSanitizedPlayerName = 0; // CUtlString
+		ptrdiff_t m_hPlayerPawn = 0; // CHandle< C_CSPlayerPawn >
+		ptrdiff_t m_hObserverPawn = 0; // CHandle< C_CSObserverPawn >
+		ptrdiff_t m_bHasCommunicationAbuseMute = -1; // bool
 	} CCSPlayerController;
 
 	struct C_BasePlayerPawn {
@@ -66,6 +69,11 @@ struct ClientDllOffsets_t {
 		ptrdiff_t m_pObserverServices = 0; // CPlayer_ObserverServices*
 		ptrdiff_t m_pCameraServices = 0; // CPlayer_CameraServices*
 	} C_BasePlayerPawn;
+
+	struct C_CSPlayerPawn {
+		ptrdiff_t m_ArmorValue = 0; // int32
+		ptrdiff_t m_bPrevHelmet = 0; // bool
+	} C_CSPlayerPawn;
 
 	struct CPlayer_CameraServices {
 		ptrdiff_t m_hViewEntity = 0; // CHandle< CBaseEntity >

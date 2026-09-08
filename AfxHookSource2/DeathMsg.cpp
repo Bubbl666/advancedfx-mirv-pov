@@ -19,6 +19,7 @@
 #include "ClientEntitySystem.h"
 #include "SchemaSystem.h"
 #include "MirvColors.h" 
+#include "MirvPovCore.h"
 
 #include "addresses.h"
 
@@ -693,6 +694,14 @@ struct myPanoramaWrapper {
 
 } g_myPanoramaWrapper;
 
+void ** DeathMsg_GetPanoramaHudPanel() {
+	return (void **)g_myPanoramaWrapper.pHudPanel;
+}
+
+void ** DeathMsg_GetPanoramaUIEngine() {
+	return (void **)g_myPanoramaWrapper.pUIEngine;
+}
+
 CON_COMMAND(__mirv_panorama_print_children, "") {
 	const auto arg0 = args->ArgV(0);
 	int argc = args->ArgC();
@@ -1174,6 +1183,13 @@ int __fastcall My_Panorama_CLayoutFile_LoadFromFile(void * This, const char * pF
 		return result;
 	}
 
+	if(0 == strcmp("panorama\\layout\\hud\\hudhealthammocenter.xml",pFilePath)
+		|| 0 == strcmp("panorama\\layout\\hud\\hudlegend.xml",pFilePath)) {
+		int result = g_Org_Panorama_CLayoutFile_LoadFromFile(This,pFilePath,_unk02);
+		MirvPov_OnPanoramaLayoutFileLoaded(pFilePath);
+		return result;
+	}
+
 	return g_Org_Panorama_CLayoutFile_LoadFromFile(This,pFilePath,_unk02);
 }
 
@@ -1480,6 +1496,7 @@ void HookPanorama(HMODULE panoramaDll)
 	if (g_myPanoramaWrapper.hooked) return;
 
 	if (!getPanoramaAddrs(panoramaDll)) return;
+	MirvPov_OnPanoramaDllLoaded(panoramaDll);
 
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());

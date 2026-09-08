@@ -1,5 +1,6 @@
 #include "SchemaSystem.h"
 #include "Globals.h"
+#include "../shared/AfxConsole.h"
 #include <winsock.h>
 
 ClientDllOffsets_t g_clientDllOffsets;
@@ -101,6 +102,14 @@ void initSchemaSystemOffsets()
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBasePlayerController.m_steamID, "client.dll", "CBasePlayerController", "m_steamID");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CBasePlayerController.m_hPawn, "client.dll", "CBasePlayerController", "m_hPawn");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CCSPlayerController.m_sSanitizedPlayerName, "client.dll", "CCSPlayerController", "m_sSanitizedPlayerName");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CCSPlayerController.m_hPlayerPawn, "client.dll", "CCSPlayerController", "m_hPlayerPawn");
+	bOk = bOk && getOffset(&g_clientDllOffsets.CCSPlayerController.m_hObserverPawn, "client.dll", "CCSPlayerController", "m_hObserverPawn");
+	if (!getOffset(&g_clientDllOffsets.CCSPlayerController.m_bHasCommunicationAbuseMute,
+		"client.dll", "CCSPlayerController", "m_bHasCommunicationAbuseMute")
+		&& !getOffset(&g_clientDllOffsets.CCSPlayerController.m_bHasCommunicationAbuseMute,
+			"client.dll", "C_CSPlayerController", "m_bHasCommunicationAbuseMute")) {
+		advancedfx::Warning("SchemaSystem optional offset lookup failed: CCSPlayerController.m_bHasCommunicationAbuseMute\n");
+	}
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BasePlayerPawn.m_hController, "client.dll", "C_BasePlayerPawn", "m_hController");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BasePlayerPawn.m_pWeaponServices, "client.dll", "C_BasePlayerPawn", "m_pWeaponServices");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BasePlayerPawn.m_pObserverServices, "client.dll", "C_BasePlayerPawn", "m_pObserverServices");
@@ -109,6 +118,12 @@ void initSchemaSystemOffsets()
 	bOk = bOk && getOffset(&g_clientDllOffsets.CPlayer_CameraServices.m_hViewEntity, "client.dll", "CPlayer_CameraServices", "m_hViewEntity");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CPlayer_ObserverServices.m_iObserverMode, "client.dll", "CPlayer_ObserverServices", "m_iObserverMode");
 	bOk = bOk && getOffset(&g_clientDllOffsets.CPlayer_ObserverServices.m_hObserverTarget, "client.dll", "CPlayer_ObserverServices", "m_hObserverTarget");
+	if (!getOffset(&g_clientDllOffsets.C_CSPlayerPawn.m_ArmorValue, "client.dll", "C_CSPlayerPawn", "m_ArmorValue")) {
+		advancedfx::Warning("SchemaSystem optional offset lookup failed: C_CSPlayerPawn.m_ArmorValue\n");
+	}
+	if (!getOffset(&g_clientDllOffsets.C_CSPlayerPawn.m_bPrevHelmet, "client.dll", "C_CSPlayerPawn", "m_bPrevHelmet")) {
+		advancedfx::Warning("SchemaSystem optional offset lookup failed: C_CSPlayerPawn.m_bPrevHelmet\n");
+	}
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseCSGrenadeProjectile.m_bCanCreateGrenadeTrail, "client.dll", "C_BaseCSGrenadeProjectile", "m_bCanCreateGrenadeTrail");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseCSGrenadeProjectile.m_nSnapshotTrajectoryEffectIndex, "client.dll", "C_BaseCSGrenadeProjectile", "m_nSnapshotTrajectoryEffectIndex");
 	bOk = bOk && getOffset(&g_clientDllOffsets.C_BaseCSGrenadeProjectile.m_flTrajectoryTrailEffectCreationTime, "client.dll", "C_BaseCSGrenadeProjectile", "m_flTrajectoryTrailEffectCreationTime");

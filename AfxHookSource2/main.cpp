@@ -21,6 +21,7 @@
 #include "MirvColors.h"
 #include "MirvFix.h"
 #include "MirvTime.h"
+#include "MirvPovCore.h"
 
 #include "../deps/release/prop/AfxHookSource/SourceSdkShared.h"
 #include "../deps/release/prop/AfxHookSource/SourceInterfaces.h"
@@ -1523,9 +1524,12 @@ void  new_CS2_Client_FrameStageNotify(void* This, SOURCESDK::CS2::ClientFrameSta
 		break;
 	}
 
+	MirvPov_OnFrameStageBefore(curStage);
+
 	AfxHookSource2Rs_Engine_OnClientFrameStageNotify(curStage, true);
 
 	old_CS2_Client_FrameStageNotify(This, curStage);
+	MirvPov_OnFrameStageAfter(curStage);
 
 	AfxHookSource2Rs_Engine_OnClientFrameStageNotify(curStage, false);
 

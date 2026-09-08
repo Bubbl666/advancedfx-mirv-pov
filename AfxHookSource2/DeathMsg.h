@@ -4,6 +4,8 @@
 
 void HookDeathMsg(HMODULE clientDll);
 void HookPanorama(HMODULE panoramaDll);
+void ** DeathMsg_GetPanoramaHudPanel();
+void ** DeathMsg_GetPanoramaUIEngine();
 
 struct currentGameCamera {
 	double origin[3];

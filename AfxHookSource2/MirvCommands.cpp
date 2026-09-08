@@ -1,14 +1,118 @@
 #include "MirvCommands.h"
 #include "ClientEntitySystem.h"
+#include "MirvPovCore.h"
+#include "MirvPovRadar.h"
+#include "MirvPovScoreboard.h"
+#include "MirvPovTeamID.h"
 
 #include "../shared/StringTools.h"
 
 #include "SceneSystem.h"
 #include "SchemaSystem.h"
+#include "AfxHookSource2Rs.h"
+#include "hlaeFolder.h"
+
+#include "../deps/release/prop/cs2/sdk_src/public/cdll_int.h"
+#include "../deps/release/prop/cs2/sdk_src/public/icvar.h"
+
+#include <string>
+#include <cstring>
+#include <filesystem>
 
 #include <algorithm>
 
 bool g_bHookedMirvCommands = false;
+
+extern SOURCESDK::CS2::ISource2EngineToClient * g_pEngineToClient;
+
+struct MirvPovCvarSetting {
+	const char * name;
+	int value;
+	SOURCESDK::CS2::ConVarHandle handle;
+	alignas(SOURCESDK::CS2::CVValue_t) unsigned char previousValue[sizeof(SOURCESDK::CS2::CVValue_t)];
+	bool previousValueSaved = false;
+};
+
+static MirvPovCvarSetting g_MirvPovCvarSettings[] = {
+	{ "cl_drawhud_force_radar", 1 },
+	{ "cl_radar_square_when_spectating", 0 },
+	{ "cl_radar_square_always", 0 },
+	{ "cl_radar_show_all_players_when_spectating", 0 },
+	{ "cl_trueview_show_status", 0 },
+	{ "r_show_build_info", 0 }
+};
+
+static void MirvPov_CopyCvarValue(SOURCESDK::CS2::CVValue_t & dst, const SOURCESDK::CS2::CVValue_t & src)
+{
+	std::memcpy(&dst, &src, sizeof(dst));
+}
+
+static void MirvPov_CopyCvarValue(unsigned char * dst, const SOURCESDK::CS2::CVValue_t & src)
+{
+	std::memcpy(dst, &src, sizeof(src));
+}
+
+static SOURCESDK::CS2::CVValue_t * MirvPov_AsCvarValue(unsigned char * value)
+{
+	return reinterpret_cast<SOURCESDK::CS2::CVValue_t *>(value);
+}
+
+static void MirvPov_SetCvar(MirvPovCvarSetting & setting, int value, bool savePreviousValue)
+{
+	if(!SOURCESDK::CS2::g_pCVar) return;
+
+	if(!setting.handle.IsValid()) setting.handle = SOURCESDK::CS2::g_pCVar->FindConVar(setting.name, false);
+	if(!setting.handle.IsValid()) return;
+
+	SOURCESDK::CS2::Cvar_s * cvar = SOURCESDK::CS2::g_pCVar->GetCvar(setting.handle.Get());
+	if(!cvar) return;
+
+	SOURCESDK::CS2::CVValue_t newValue = {};
+	SOURCESDK::CS2::CVValue_t oldValue = {};
+	MirvPov_CopyCvarValue(newValue, cvar->m_Value);
+	MirvPov_CopyCvarValue(oldValue, cvar->m_Value);
+	newValue.m_i32Value = value;
+
+	if(savePreviousValue && !setting.previousValueSaved) {
+		MirvPov_CopyCvarValue(setting.previousValue, oldValue);
+		setting.previousValueSaved = true;
+	}
+
+	if(oldValue.m_i32Value == value) return;
+
+	MirvPov_CopyCvarValue(cvar->m_Value, newValue);
+	SOURCESDK::CS2::g_pCVar->CallChangeCallback(setting.handle, 0, &newValue, &oldValue);
+}
+
+static void MirvPov_ApplyCvarSettings()
+{
+	for(MirvPovCvarSetting & setting : g_MirvPovCvarSettings) {
+		MirvPov_SetCvar(setting, setting.value, true);
+	}
+}
+
+static void MirvPov_RestoreCvarSettings()
+{
+	if(!SOURCESDK::CS2::g_pCVar) return;
+
+	for(MirvPovCvarSetting & setting : g_MirvPovCvarSettings) {
+		if(!setting.previousValueSaved) continue;
+
+		if(!setting.handle.IsValid()) setting.handle = SOURCESDK::CS2::g_pCVar->FindConVar(setting.name, false);
+		if(setting.handle.IsValid()) {
+			SOURCESDK::CS2::Cvar_s * cvar = SOURCESDK::CS2::g_pCVar->GetCvar(setting.handle.Get());
+			if(cvar) {
+				SOURCESDK::CS2::CVValue_t oldValue = {};
+				SOURCESDK::CS2::CVValue_t * previousValue = MirvPov_AsCvarValue(setting.previousValue);
+				MirvPov_CopyCvarValue(oldValue, cvar->m_Value);
+				MirvPov_CopyCvarValue(cvar->m_Value, *previousValue);
+				SOURCESDK::CS2::g_pCVar->CallChangeCallback(setting.handle, 0, previousValue, &oldValue);
+			}
+		}
+
+		setting.previousValueSaved = false;
+	}
+}
 
 float g_fNoFlashAmount = 0.0f;
 
@@ -82,6 +186,69 @@ void mirvNoFlash_Console(advancedfx::ICommandArgs* args) {
 CON_COMMAND(mirv_noflash, "Disables flash overlay.")
 {
 	mirvNoFlash_Console(args);
+}
+
+static void MirvPov_LoadVoiceScript()
+{
+	std::filesystem::path path(GetHlaeFolder());
+	path /= "resources\\AfxHookSource2\\snippets\\mirv_script_voice.js";
+	AfxHookSourceRs_Engine_Load(path.string().c_str());
+}
+
+CON_COMMAND(mirv_pov, "POV HUD with radar showing teammates. Offline demo playback only.")
+{
+	int argc = args->ArgC();
+	if(2 == argc) {
+		const char * arg1 = args->ArgV(1);
+		if(0 == _stricmp(arg1, "true") || 0 == _stricmp(arg1, "1") || 0 == _stricmp(arg1, "on")) {
+			HMODULE hClient = GetModuleHandleW(L"client.dll");
+			MirvPov_LoadVoiceScript();
+			MirvPov_ApplyCvarSettings();
+			MirvPovTeamID_ApplyPatches(hClient);
+			MirvPov_Enable(hClient);
+			advancedfx::Message("mirv_pov enabled. Use mp_forcecamera 0 for cross-team switching.\n");
+			return;
+		}
+		if(0 == _stricmp(arg1, "false") || 0 == _stricmp(arg1, "0") || 0 == _stricmp(arg1, "off")) {
+			MirvPov_Disable();
+			MirvPov_RestoreCvarSettings();
+			advancedfx::Message("mirv_pov disabled.\n");
+			return;
+		}
+	}
+	advancedfx::Message(
+		"Usage: mirv_pov true|false\n"
+			"  true  - Enable POV HUD, teammate competitive radar colors, smoke-visible teammates, red enemies\n"
+			"  false - Disable and restore original behavior\n"
+			"Current: %s\n"
+			"Note: Use mirv_pov_scoreboard 1 to enable demo scoreboard sync. Use mp_forcecamera 0 for cross-team switching. Offline demo only. Restores POV cvars on disable.\n"
+			, MirvPov_IsEnabled() ? "enabled" : "disabled"
+		);
+}
+
+CON_COMMAND(mirv_pov_scoreboard, "Sync demo POV scoreboard key to +showscores. Disabled by default.")
+{
+	int argc = args->ArgC();
+	if(2 == argc) {
+		const char * arg1 = args->ArgV(1);
+		if(0 == _stricmp(arg1, "true") || 0 == _stricmp(arg1, "1") || 0 == _stricmp(arg1, "on")) {
+			MirvPovScoreboard_SetEnabled(true);
+			advancedfx::Message("mirv_pov_scoreboard enabled.\n");
+			return;
+		}
+		if(0 == _stricmp(arg1, "false") || 0 == _stricmp(arg1, "0") || 0 == _stricmp(arg1, "off")) {
+			MirvPovScoreboard_SetEnabled(false);
+			advancedfx::Message("mirv_pov_scoreboard disabled.\n");
+			return;
+		}
+	}
+	advancedfx::Message(
+		"Usage: mirv_pov_scoreboard true|false\n"
+		"  true  - Enable scoreboard sync from current POV target's demo ButtonScore\n"
+		"  false - Disable scoreboard sync and close +showscores\n"
+		"Current: %s\n"
+			, MirvPovScoreboard_IsEnabled() ? "enabled" : "disabled"
+	);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
